@@ -80,8 +80,35 @@ export class TaskProcessor {
       headers,
     };
 
-    if (task.body !== null && task.body !== undefined && !isBodyless(task.method)) {
+    // A body of exactly { body_b64: "<base64>" } is sent as raw bytes (e.g. a
+    // multipart payload built by the client, with its Content-Type passed in
+    // task.headers).
+    const b64 = extractBodyB64(task.body);
+    let bodyEncoding: "b64" | "json" | null = null;
+
+    if (b64 !== null && !isBodyless(task.method)) {
+      if (!isValidBase64(b64)) {
+        Metrics.tickTasksFailed()
+        logger.error("task_body_b64_invalid", {
+          id: task.stargate_task_id,
+          method: task.method,
+          uri: task.uri,
+          length: b64.length,
+        });
+        const result: TaskResult = {
+          ok: false,
+          status: null,
+          responseBody: "",
+          error: "body_b64 is not valid base64",
+        };
+        await this.report(task, result);
+        return result;
+      }
+      init.body = new Uint8Array(Buffer.from(b64, "base64"));
+      bodyEncoding = "b64";
+    } else if (task.body !== null && task.body !== undefined && !isBodyless(task.method)) {
       init.body = JSON.stringify(task.body);
+      bodyEncoding = "json";
       if (!hasHeader(headers, "Content-Type")) {
         headers["Content-Type"] = "application/json";
       }
@@ -95,6 +122,13 @@ export class TaskProcessor {
       target: url,
       headers: headers,
       hasBody: init.body !== undefined,
+      bodyEncoding,
+      bodyBytes:
+        init.body instanceof Uint8Array
+          ? init.body.byteLength
+          : typeof init.body === "string"
+            ? Buffer.byteLength(init.body)
+            : 0,
     });
 
     let result: TaskResult;
@@ -187,6 +221,20 @@ export class TaskProcessor {
 function isBodyless(method: string): boolean {
   const m = method.toUpperCase();
   return m === "GET" || m === "HEAD";
+}
+
+// Returns the base64 string only when body is exactly { body_b64: string };
+// anything else (extra keys, arrays, non-string value) stays a JSON body.
+function extractBodyB64(body: unknown): string | null {
+  if (body === null || typeof body !== "object" || Array.isArray(body)) return null;
+  const keys = Object.keys(body);
+  if (keys.length !== 1 || keys[0] !== "body_b64") return null;
+  const value = (body as { body_b64: unknown }).body_b64;
+  return typeof value === "string" ? value : null;
+}
+
+function isValidBase64(s: string): boolean {
+  return s.length % 4 === 0 && /^[A-Za-z0-9+/]*={0,2}$/.test(s);
 }
 
 function tryParseJson(text: string): unknown {

@@ -132,6 +132,14 @@ On startup the app logs `internal_system_config_loaded` (with the list of header
 
 Type: [`InternalSystemRequestConfig`](src/types/internal-system-request-config.ts).
 
+#### Binary task bodies
+
+A task whose `body` is exactly `{"body_b64": "<base64>"}` (no other keys) is decoded and sent as raw bytes instead of JSON. Use it for multipart uploads and other binary payloads: the client builds the full body and passes the matching `Content-Type` (e.g. `multipart/form-data; boundary=...`) in `task.headers`. No `Content-Type` default is added for binary bodies. To upload several files in one task, put them all as separate parts of a single multipart body — the gateway forwards the bytes as-is.
+
+- Invalid base64 (standard alphabet, padded) fails the task with `body_b64 is not valid base64` without calling the internal service.
+- Any other body shape (extra keys, non-string `body_b64`, arrays) is sent as JSON unchanged.
+- `task_started` logs `bodyEncoding` (`b64` / `json`) and `bodyBytes`.
+
 ### HTTP proxy
 
 All outbound `fetch` calls (the `/api/*` proxy, stargate polling, task execution, task result reporting) honor the standard Node/undici proxy environment variables. If neither `HTTP_PROXY` nor `HTTPS_PROXY` is set, the app makes direct connections as before — nothing changes.
