@@ -120,7 +120,7 @@ export class TaskProcessor {
       method: task.method,
       uri: task.uri,
       target: url,
-      headers: headers,
+      headerNames: Object.keys(headers),
       hasBody: init.body !== undefined,
       bodyEncoding,
       bodyBytes:

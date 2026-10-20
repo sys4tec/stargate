@@ -5,10 +5,16 @@ const httpProxy = process.env.HTTP_PROXY;
 const httpsProxy = process.env.HTTPS_PROXY;
 
 if (httpProxy || httpsProxy) {
-  setGlobalDispatcher(new EnvHttpProxyAgent());
+  try {
+    setGlobalDispatcher(new EnvHttpProxyAgent());
+  } catch {
+    logger.error("http_proxy_configuration_invalid");
+    process.exit(1);
+  }
+
   logger.info("http_proxy_enabled", {
-    httpProxy,
-    httpsProxy,
+    hasHttpProxy: Boolean(httpProxy),
+    hasHttpsProxy: Boolean(httpsProxy),
     noProxy: process.env.NO_PROXY,
   });
 }
