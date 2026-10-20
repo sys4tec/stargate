@@ -150,7 +150,7 @@ All outbound `fetch` calls (the `/api/*` proxy, stargate polling, task execution
 | `HTTPS_PROXY` | no | Proxy URL for outbound `https://` requests. Example: `http://corp-proxy:8080`. |
 | `NO_PROXY` | no | Comma-separated list of hosts/patterns that should bypass the proxy. Useful when the upstream proxy can't reach internal services. Example: `host.docker.internal,localhost,127.0.0.1`. |
 
-When a proxy is configured, the app logs `http_proxy_enabled` at startup with the resolved values so you can confirm it's active. The proxy is installed globally via `undici.setGlobalDispatcher(new EnvHttpProxyAgent())`, so every fetch in the process routes through it.
+When a proxy is configured, the app logs `http_proxy_enabled` at startup with `hasHttpProxy` and `hasHttpsProxy` booleans and the `NO_PROXY` bypass list so you can confirm it's active without logging proxy URLs or credentials. The proxy is installed globally via `undici.setGlobalDispatcher(new EnvHttpProxyAgent())`, so every fetch in the process routes through it.
 
 ## Process behavior
 

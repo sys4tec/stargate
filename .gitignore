@@ -5,3 +5,4 @@ dist/
 .env.local
 ./logs/*
 docker-compose.yml
+.idea/
